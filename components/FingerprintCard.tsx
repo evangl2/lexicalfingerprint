@@ -59,7 +59,7 @@ const FingerprintCard: React.FC<Props> = ({ item, onRemove }) => {
               </p>
             </div>
 
-            <div className="flex-1 w-full min-h-[180px]">
+            <div className="w-full h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={item.result.fingerprint} layout="vertical" margin={{ left: 0, right: 30 }}>
                   <XAxis type="number" domain={[0, 1.2]} hide />

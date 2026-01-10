@@ -1,31 +1,39 @@
 import React, { useState, useCallback } from 'react';
-import { ProcessingItem } from './types';
-import { SCENARIOS } from './constants';
+import { ProcessingItem, FingerprintConfig } from './types';
+import { SCENARIOS, DEFAULT_CONFIG, AVAILABLE_MODELS } from './constants';
 import { generateFingerprint } from './services/geminiService';
 import FingerprintCard from './components/FingerprintCard';
 import { calculateSimilarity, getSimilarityColor } from './utils/similarity';
-import { BrainCircuit, Play, RefreshCw, Wand2, FlaskConical } from 'lucide-react';
+import { BrainCircuit, Play, RefreshCw, Wand2, FlaskConical, Settings, RotateCcw, X, Plus, Minus, Sliders, Cpu } from 'lucide-react';
 
 const App: React.FC = () => {
   const [items, setItems] = useState<ProcessingItem[]>([]);
   const [definition, setDefinition] = useState(''); 
   const [label, setLabel] = useState('');
   const [activeTab, setActiveTab] = useState<'playground' | 'scenarios'>('scenarios');
+  
+  // Configuration State
+  const [config, setConfig] = useState<FingerprintConfig>(DEFAULT_CONFIG);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleAddItem = useCallback(async (inputDefinition: string, inputLabel?: string) => {
     if (!inputDefinition.trim()) return;
+
+    // Capture current config at the moment of generation
+    const currentConfig = { ...config };
 
     const newItem: ProcessingItem = {
       id: crypto.randomUUID(),
       input: inputDefinition,
       label: inputLabel || 'Custom Definition',
+      config: currentConfig,
       loading: true,
     };
 
     setItems(prev => [...prev, newItem]);
 
     try {
-      const result = await generateFingerprint(inputDefinition);
+      const result = await generateFingerprint(inputDefinition, currentConfig);
       setItems(prev => prev.map(item => 
         item.id === newItem.id ? { ...item, result, loading: false } : item
       ));
@@ -34,7 +42,7 @@ const App: React.FC = () => {
         item.id === newItem.id ? { ...item, error: 'Failed to generate fingerprint', loading: false } : item
       ));
     }
-  }, []);
+  }, [config]);
 
   const handleRunScenario = (scenarioId: string) => {
     setItems([]); // Clear previous
@@ -50,6 +58,19 @@ const App: React.FC = () => {
 
   const removeItem = (id: string) => {
     setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const updateTier = (index: number, updates: Partial<typeof config.tiers[0]>) => {
+    const newTiers = [...config.tiers];
+    newTiers[index] = { ...newTiers[index], ...updates };
+    setConfig({ ...config, tiers: newTiers });
+  };
+
+  const updateTotalCount = (delta: number) => {
+    setConfig(prev => ({
+        ...prev,
+        totalCount: Math.max(1, Math.min(20, prev.totalCount + delta))
+    }));
   };
 
   const renderComparisonMetrics = () => {
@@ -119,7 +140,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 p-2 rounded-lg text-white">
@@ -127,26 +148,152 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Semantic Fingerprint</h1>
-              <p className="text-xs text-slate-500 font-medium">Linguistic Sense Extractor</p>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">Linguistic Sense Extractor</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          
+          <div className="flex items-center gap-3">
              <nav className="flex bg-slate-100 p-1 rounded-lg">
                 <button 
                   onClick={() => setActiveTab('scenarios')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'scenarios' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'scenarios' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  Test Suite
+                  Tests
                 </button>
                 <button 
                   onClick={() => setActiveTab('playground')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'playground' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'playground' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Playground
                 </button>
              </nav>
+             
+             <div className="h-6 w-px bg-slate-200 mx-1"></div>
+
+             <button 
+               onClick={() => setShowSettings(!showSettings)}
+               className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md transition-all border ${showSettings ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}
+             >
+               <Settings size={16} />
+               <span className="hidden sm:inline">Config</span>
+             </button>
           </div>
         </div>
+
+        {/* Global Settings Panel */}
+        {showSettings && (
+          <div className="border-t border-slate-200 bg-slate-50/90 backdrop-blur-sm animate-in slide-in-from-top-2">
+             <div className="max-w-7xl mx-auto px-4 py-6">
+                <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
+                    <div>
+                        <h3 className="text-sm font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
+                            <Sliders size={14} />
+                            Generation Configuration
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                            Configure model choice and how the AI distributes semantic weight.
+                        </p>
+                    </div>
+                  
+                    <div className="flex items-center gap-4">
+                        <button 
+                        onClick={() => setConfig(DEFAULT_CONFIG)}
+                        className="text-xs flex items-center gap-1 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                        <RotateCcw size={12} /> Reset Defaults
+                        </button>
+                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+                        <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Model Selection */}
+                <div className="mb-8">
+                    <label className="text-sm font-bold uppercase text-slate-500 block mb-3 flex items-center gap-2">
+                        <Cpu size={14} />
+                        Active Model
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                        {AVAILABLE_MODELS.map(model => (
+                            <button
+                                key={model.id}
+                                onClick={() => setConfig({ ...config, model: model.id })}
+                                className={`px-4 py-3 text-left rounded-lg border transition-all ${
+                                    config.model === model.id
+                                    ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500 text-indigo-700 shadow-sm'
+                                    : 'bg-white border-slate-200 hover:border-indigo-300 text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <div className="font-semibold text-sm truncate" title={model.name}>{model.name}</div>
+                                <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate" title={model.id}>{model.id}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Global Total Count Control */}
+                <div className="mb-8 flex items-center justify-center">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-6">
+                        <label className="text-sm font-bold uppercase text-slate-500">Total Fingerprint Size (Words)</label>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => updateTotalCount(-1)}
+                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                            >
+                                <Minus size={18} />
+                            </button>
+                            <span className="w-12 text-center font-mono font-bold text-2xl text-indigo-600">{config.totalCount}</span>
+                            <button 
+                                onClick={() => updateTotalCount(1)}
+                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {config.tiers.map((tier, idx) => (
+                    <div key={idx} className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-2 opacity-10">
+                            <span className="text-6xl font-black">{idx + 1}</span>
+                       </div>
+                       
+                       <div className="flex justify-between items-center mb-4 relative z-10">
+                          <span className="font-semibold text-slate-800 text-sm">{tier.label}</span>
+                          <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Tier {idx + 1}</span>
+                       </div>
+                       
+                       {/* Weight Control */}
+                       <div className="mb-4 relative z-10">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Relevance Weight</label>
+                          <div className="flex items-center gap-3">
+                             <input 
+                               type="range"
+                               min="0"
+                               max="1"
+                               step="0.05"
+                               value={tier.weight}
+                               onChange={(e) => updateTier(idx, { weight: parseFloat(e.target.value) })}
+                               className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                             />
+                             <span className="font-mono text-lg font-bold text-indigo-600 w-12 text-right">
+                               {tier.weight.toFixed(2)}
+                             </span>
+                          </div>
+                       </div>
+                       
+                       <div className="bg-slate-50 p-3 rounded text-xs text-slate-500 italic leading-relaxed border border-slate-100 relative z-10 min-h-[4em]">
+                         "{tier.description}"
+                       </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">

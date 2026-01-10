@@ -1,4 +1,22 @@
-import { Scenario } from './types';
+import { Scenario, FingerprintConfig } from './types';
+
+export const AVAILABLE_MODELS = [
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash (Recommended)' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro (High Quality)' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite' },
+];
+
+export const DEFAULT_CONFIG: FingerprintConfig = {
+  model: 'gemini-3-flash-preview',
+  totalCount: 5,
+  tiers: [
+    { label: 'Tier 1 (Core)', weight: 1.0, description: 'The most essential word. If missing, the sense changes.' },
+    { label: 'Tier 2 (Strong)', weight: 0.7, description: 'Very close, but might have slight nuance differences.' },
+    { label: 'Tier 3 (Related)', weight: 0.3, description: 'Broadly related, used to map the general semantic field.' }
+  ]
+};
 
 export const SCENARIOS: Scenario[] = [
   {
