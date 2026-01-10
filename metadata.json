@@ -1,0 +1,5 @@
+{
+  "name": "Semantic Fingerprint Generator",
+  "description": "A linguistic engine tool powered by Gemini to extract and compare semantic senses of words and concepts across contexts and languages.",
+  "requestFramePermissions": []
+}
