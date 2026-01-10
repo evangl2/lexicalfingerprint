@@ -1,7 +1,8 @@
 import React from 'react';
 import { ProcessingItem } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Fingerprint } from 'lucide-react';
+import { generateDiscoveryKey } from '../utils/similarity';
 
 interface Props {
   item: ProcessingItem;
@@ -12,17 +13,19 @@ const FingerprintCard: React.FC<Props> = ({ item, onRemove }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full transition-all hover:shadow-md">
       <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold text-slate-800 text-lg break-words">{item.input}</h3>
-          {item.context && (
-            <p className="text-xs text-slate-500 mt-1 italic line-clamp-2" title={item.context}>
-              Context: {item.context}
-            </p>
+        <div className="w-full pr-4">
+          {item.label && (
+             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+               {item.label}
+             </div>
           )}
+          <h3 className="font-medium text-slate-700 text-sm leading-relaxed italic line-clamp-3" title={item.input}>
+             "{item.input}"
+          </h3>
         </div>
         <button 
           onClick={() => onRemove(item.id)}
-          className="text-slate-400 hover:text-red-500 transition-colors"
+          className="text-slate-400 hover:text-red-500 transition-colors -mt-1 -mr-1 p-1"
         >
           &times;
         </button>
@@ -42,7 +45,15 @@ const FingerprintCard: React.FC<Props> = ({ item, onRemove }) => {
         ) : item.result ? (
           <>
             <div className="mb-4">
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Extracted Semantic Sense</span>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Extracted Semantic Sense</span>
+                {item.result && (
+                  <span className="flex items-center gap-1 text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 border border-slate-200">
+                    <Fingerprint size={10} />
+                    ID: {generateDiscoveryKey(item.result.fingerprint)}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-slate-700 mt-1 leading-relaxed bg-indigo-50/50 p-2 rounded-md border border-indigo-100">
                 {item.result.sense_description}
               </p>

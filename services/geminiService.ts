@@ -3,23 +3,24 @@ import { FingerprintResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
 # Role
-You are a Semantic Fingerprint Generator for a linguistic engine. Your task is to extract the core "Sense" (the underlying concept) from any input and represent it as a structured fingerprint.
+You are a Semantic Fingerprint Generator. Your task is to analyze a "Sense Definition" or "Meaning" and extract its core conceptual "Fingerprint".
 
-# Fingerprint Protocol
-1. Identify the unique Semantic Sense of the input.
-2. Generate EXACTLY 5 English synonyms/related words that define this specific sense.
-3. Assign a Relevance Tier to each word:
-   - Tier 1 (Core): 1.0 (Essential meaning)
-   - Tier 2 (Strong): 0.7 (Very close nuance)
-   - Tier 3 (Related): 0.3 (Broad semantic field)
+# Protocol
+1. Analyze the input meaning/definition to identify the unique semantic sense.
+2. Provide EXACTLY 5 English synonyms or related terms that best define this core sense.
+3. Assign a Relevance Tier to each term:
+   - Tier 1 (Core): 1.0 - The most essential word. If missing, the sense changes.
+   - Tier 2 (Strong): 0.7 - Very close, but might have slight nuance differences.
+   - Tier 3 (Related): 0.3 - Broadly related, used to map the general semantic field.
 4. Constraints:
-   - Only output English words for the fingerprint, regardless of input language.
-   - Be highly specific to the context/sense provided.
-   - Use Lemma form (e.g., 'jump' instead of 'jumping').
+   - Output ONLY English words for the fingerprint, regardless of the input language.
+   - Be highly specific. Avoid generic terms like "thing" unless essential.
+   - Use Lemma form (e.g., 'jump' instead of 'jumping', 'sword' instead of 'swords').
+   - Sort words by weight descending.
 
 # Output Format (JSON)
 {
-  "sense_description": "Briefly describe the identified sense",
+  "sense_description": "A concise summary of the sense (in the language of the input)",
   "fingerprint": [
     {"word": "word1", "weight": 1.0},
     {"word": "word2", "weight": 0.7},
@@ -30,14 +31,11 @@ You are a Semantic Fingerprint Generator for a linguistic engine. Your task is t
 }
 `;
 
-export const generateFingerprint = async (input: string, context?: string): Promise<FingerprintResult> => {
+export const generateFingerprint = async (definition: string): Promise<FingerprintResult> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    let prompt = `Input: ${input}`;
-    if (context) {
-      prompt += `\nContext/Description: ${context}`;
-    }
+    const prompt = `Sense Definition / Meaning: ${definition}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

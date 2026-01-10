@@ -3,39 +3,51 @@ import { Scenario } from './types';
 export const SCENARIOS: Scenario[] = [
   {
     id: 'disambiguation',
-    title: '1. Disambiguation Test',
-    description: 'Verify if the same word "Bank" produces different fingerprints based on context (Financial vs. River).',
+    title: '1. Disambiguation Test (Bank)',
+    description: 'Verify if the definitions of "Bank" (Financial vs River) produce distinct fingerprints.',
     items: [
-      { input: 'Bank', context: 'I need to deposit my salary and check my savings account.' },
-      { input: 'Bank', context: 'We sat on the grassy bank and watched the river flow by.' }
+      { 
+        label: 'Bank (Financial)',
+        input: '存放或借贷货币的机构，从事存款、放款、汇兑、储蓄等业务。' 
+      },
+      { 
+        label: 'Bank (River)',
+        input: 'The land alongside or sloping down to a river or lake.' 
+      }
     ]
   },
   {
     id: 'cross-lingual',
-    title: '2. Cross-lingual Anchor Test',
-    description: 'Verify if "Spring" produces the same fingerprint across Chinese, English, and French.',
+    title: '2. Cross-lingual Anchor Test (Spring)',
+    description: 'Verify if Chinese, English, and French definitions of "Spring" converge to the same fingerprint.',
     items: [
-      { input: '春天', context: 'Concept: Season' },
-      { input: 'Spring', context: 'Concept: Season' },
-      { input: 'Printemps', context: 'Concept: Season' }
+      { 
+        label: 'Spring (Chinese)',
+        input: '冬天到夏天之间的季节,天文学上是从三月的春分到六月的夏至。' 
+      },
+      { 
+        label: 'Spring (English)',
+        input: 'The season after winter and before summer, in which vegetation begins to appear.' 
+      },
+      { 
+        label: 'Spring (French)',
+        input: "Saison qui suit l'hiver et précède l'été." 
+      }
     ]
   },
   {
-    id: 'desc-vs-word',
-    title: '3. Description vs Word Test',
-    description: 'Compare a specific word "Spring (Hardware)" with its abstract definition.',
+    id: 'abstract-logic',
+    title: '3. Abstract Logic Test',
+    description: 'Compare the physical definition of a spring with its functional mechanical description.',
     items: [
-      { input: 'Spring', context: 'Hardware/Mechanical context' },
-      { input: 'Description', context: 'A mechanical device made of coiled metal that recovers its shape after being compressed.' }
-    ]
-  },
-  {
-    id: 'synonym-merge',
-    title: '4. Synonym Merge Test',
-    description: 'Check overlap between "Sword" and "Katana". Should share Tier 1 but diverge on Tier 2/3.',
-    items: [
-      { input: 'Sword', context: 'General concept' },
-      { input: 'Katana', context: 'Specific concept' }
+      { 
+        label: 'Spring (Physics)',
+        input: '一种利用弹性来工作的机械零件。用弹性材料制成的零件在外力作用下发生形变，除去外力后又恢复原状。' 
+      },
+      { 
+        label: 'Spring (Mechanism)',
+        input: 'A mechanical device made of coiled metal that recovers its shape after being compressed.' 
+      }
     ]
   }
 ];

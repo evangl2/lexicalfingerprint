@@ -8,22 +8,24 @@ import { BrainCircuit, Play, RefreshCw, Wand2, FlaskConical } from 'lucide-react
 
 const App: React.FC = () => {
   const [items, setItems] = useState<ProcessingItem[]>([]);
-  const [customInput, setCustomInput] = useState('');
-  const [customContext, setCustomContext] = useState('');
+  const [definition, setDefinition] = useState(''); 
+  const [label, setLabel] = useState('');
   const [activeTab, setActiveTab] = useState<'playground' | 'scenarios'>('scenarios');
 
-  const handleAddItem = useCallback(async (input: string, context?: string) => {
+  const handleAddItem = useCallback(async (inputDefinition: string, inputLabel?: string) => {
+    if (!inputDefinition.trim()) return;
+
     const newItem: ProcessingItem = {
       id: crypto.randomUUID(),
-      input,
-      context,
+      input: inputDefinition,
+      label: inputLabel || 'Custom Definition',
       loading: true,
     };
 
     setItems(prev => [...prev, newItem]);
 
     try {
-      const result = await generateFingerprint(input, context);
+      const result = await generateFingerprint(inputDefinition);
       setItems(prev => prev.map(item => 
         item.id === newItem.id ? { ...item, result, loading: false } : item
       ));
@@ -40,8 +42,8 @@ const App: React.FC = () => {
     if (scenario) {
       setActiveTab('playground');
       scenario.items.forEach((item, index) => {
-        // Stagger calls slightly to look nice, though not strictly necessary
-        setTimeout(() => handleAddItem(item.input, item.context), index * 200);
+        // Stagger calls slightly to look nice
+        setTimeout(() => handleAddItem(item.input, item.label), index * 200);
       });
     }
   };
@@ -79,7 +81,7 @@ const App: React.FC = () => {
                  <div className="flex flex-col w-1/2 min-w-0">
                    <div className="flex items-center gap-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Sense A</span>
-                      {combo.itemA.input && <span className="text-[10px] opacity-40 truncate">({combo.itemA.input})</span>}
+                      {combo.itemA.label && <span className="text-[10px] opacity-40 truncate">({combo.itemA.label})</span>}
                    </div>
                    <span className="text-xs font-medium leading-snug line-clamp-3 mt-1" title={combo.itemA.result?.sense_description}>
                      {combo.itemA.result?.sense_description || combo.itemA.input}
@@ -89,7 +91,7 @@ const App: React.FC = () => {
                  {/* Item B Label */}
                  <div className="flex flex-col w-1/2 min-w-0 text-right">
                    <div className="flex items-center justify-end gap-1">
-                      {combo.itemB.input && <span className="text-[10px] opacity-40 truncate">({combo.itemB.input})</span>}
+                      {combo.itemB.label && <span className="text-[10px] opacity-40 truncate">({combo.itemB.label})</span>}
                       <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Sense B</span>
                    </div>
                    <span className="text-xs font-medium leading-snug line-clamp-3 mt-1" title={combo.itemB.result?.sense_description}>
@@ -111,6 +113,8 @@ const App: React.FC = () => {
       </div>
     );
   };
+
+  const isFormValid = definition.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -163,8 +167,9 @@ const App: React.FC = () => {
                  <p className="text-slate-500 text-sm mb-6 flex-1">{scenario.description}</p>
                  <div className="space-y-2">
                    {scenario.items.map((item, i) => (
-                     <div key={i} className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200 truncate group-hover:bg-white group-hover:border-indigo-100">
-                       {item.input}
+                     <div key={i} className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200 truncate group-hover:bg-white group-hover:border-indigo-100 flex gap-2">
+                        {item.label && <span className="font-bold text-slate-400 select-none">[{item.label}]</span>}
+                        <span className="truncate">{item.input}</span>
                      </div>
                    ))}
                  </div>
@@ -180,37 +185,41 @@ const App: React.FC = () => {
             {/* Input Area */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full space-y-1">
-                  <label className="text-xs font-semibold text-slate-500 uppercase">Lexical Input (Word/Phrase)</label>
+                <div className="flex-[2] w-full space-y-1">
+                  <label className="text-xs font-semibold text-slate-500 uppercase flex items-center gap-1">
+                    Sense Definition / Meaning
+                    <span className="text-indigo-600 text-[10px] bg-indigo-50 px-1.5 py-0.5 rounded-full">Core Input</span>
+                  </label>
                   <input 
                     type="text" 
-                    value={customInput}
-                    onChange={(e) => setCustomInput(e.target.value)}
-                    placeholder="e.g. Bank, Spring, Sword"
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                    onKeyDown={(e) => e.key === 'Enter' && customInput && handleAddItem(customInput, customContext)}
+                    value={definition}
+                    onChange={(e) => setDefinition(e.target.value)}
+                    placeholder="e.g. 冬天到夏天之间的季节，或者一种可以压缩的金属零件..."
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
+                    onKeyDown={(e) => e.key === 'Enter' && isFormValid && handleAddItem(definition, label)}
+                    autoFocus
                   />
                 </div>
-                <div className="flex-[2] w-full space-y-1">
-                  <label className="text-xs font-semibold text-slate-500 uppercase">Semantic Context (Optional)</label>
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-semibold text-slate-500 uppercase">Label (Optional)</label>
                   <input 
                     type="text" 
-                    value={customContext}
-                    onChange={(e) => setCustomContext(e.target.value)}
-                    placeholder="e.g. Financial institution..."
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    placeholder="e.g. Bank (Financial)"
                     className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                    onKeyDown={(e) => e.key === 'Enter' && customInput && handleAddItem(customInput, customContext)}
+                    onKeyDown={(e) => e.key === 'Enter' && isFormValid && handleAddItem(definition, label)}
                   />
                 </div>
                 <button
                   onClick={() => {
-                    if (customInput) {
-                      handleAddItem(customInput, customContext);
-                      setCustomInput('');
-                      setCustomContext('');
+                    if (isFormValid) {
+                      handleAddItem(definition, label);
+                      setDefinition('');
+                      setLabel('');
                     }
                   }}
-                  disabled={!customInput}
+                  disabled={!isFormValid}
                   className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm shadow-indigo-200"
                 >
                   <Wand2 size={18} />
@@ -254,7 +263,7 @@ const App: React.FC = () => {
             {items.length === 0 && (
                <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
                  <p className="mb-2">Workspace is empty.</p>
-                 <p className="text-sm">Use the form above or select a Test Scenario.</p>
+                 <p className="text-sm">Enter a Meaning/Definition above or select a Test Scenario.</p>
                </div>
             )}
           </div>

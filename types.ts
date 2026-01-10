@@ -10,8 +10,8 @@ export interface FingerprintResult {
 
 export interface ProcessingItem {
   id: string;
-  input: string;
-  context?: string;
+  input: string; // Now represents the Definition/Meaning
+  label?: string; // Optional user label for UI
   result?: FingerprintResult;
   loading: boolean;
   error?: string;
@@ -22,7 +22,7 @@ export interface Scenario {
   title: string;
   description: string;
   items: {
-    input: string;
-    context?: string;
+    input: string; // The definition
+    label?: string;
   }[];
 }

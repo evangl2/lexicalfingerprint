@@ -1,44 +1,38 @@
 import { FingerprintItem, FingerprintResult } from "../types";
 
-// A simple weighted Jaccard-ish similarity for demonstration
-// If words match, we multiply their weights and sum it up.
-// Normalized by the max possible weight (assuming perfect match).
+// Formula: Sum(Min Weights) / Sum(Max Weights)
 export const calculateSimilarity = (fp1: FingerprintResult, fp2: FingerprintResult): number => {
   const map1 = new Map(fp1.fingerprint.map(i => [i.word.toLowerCase(), i.weight]));
   const map2 = new Map(fp2.fingerprint.map(i => [i.word.toLowerCase(), i.weight]));
 
-  let intersectionScore = 0;
-  
-  // Collect all unique words
   const allWords = new Set([...map1.keys(), ...map2.keys()]);
   
-  // Calculate raw intersection value
+  let intersectionSum = 0;
+  let unionSum = 0;
+  
   allWords.forEach(word => {
     const w1 = map1.get(word) || 0;
     const w2 = map2.get(word) || 0;
-    // We only care if they overlap. The score is determined by the minimum weight present in both.
-    // If one has 1.0 and other 0.0, overlap is 0.
-    // If one has 1.0 and other 0.7, overlap is driven by 0.7.
-    intersectionScore += Math.min(w1, w2);
+    intersectionSum += Math.min(w1, w2);
+    unionSum += Math.max(w1, w2);
   });
 
-  // Calculate maximum potential score (Sum of max weights for each word involved)
-  // This is a simplified normalization. 
-  // A perfect match (identical lists) -> Sum of weights.
-  let maxScore1 = 0;
-  fp1.fingerprint.forEach(i => maxScore1 += i.weight);
-  
-  let maxScore2 = 0;
-  fp2.fingerprint.forEach(i => maxScore2 += i.weight);
-  
-  const normalizationFactor = (maxScore1 + maxScore2) / 2;
+  return unionSum === 0 ? 0 : intersectionSum / unionSum;
+};
 
-  if (normalizationFactor === 0) return 0;
-
-  // Boost the score slightly for Exact Word matches in Tier 1 (1.0) to represent "Core Concept" alignment
-  // This aligns with the "Anchor" test requirement.
+// Generate a hash ID for the fingerprint content
+export const generateDiscoveryKey = (items: FingerprintItem[]): string => {
+  const sorted = [...items].sort((a, b) => a.word.localeCompare(b.word));
+  const raw = sorted.map(i => `${i.word.toLowerCase()}:${i.weight.toFixed(1)}`).join('|');
   
-  return Math.min(1.0, intersectionScore / normalizationFactor);
+  // Simple hash implementation
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  // Convert to positive hex string padded
+  return (hash >>> 0).toString(16).padStart(8, '0').toUpperCase();
 };
 
 export const getSimilarityColor = (score: number) => {
