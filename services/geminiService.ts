@@ -21,9 +21,14 @@ ${tiersInstruction}
 
 # Constraints
    - Output ONLY English words for the fingerprint, regardless of the input language.
-   - Be highly specific. Avoid generic terms like "thing" unless essential.
-   - Use Lemma form (e.g., 'jump' instead of 'jumping', 'sword' instead of 'swords').
    - Sort words by Tier (1 first, then 2, then 3).
+
+# Lemmatization & Normalization Rules (CRITICAL)
+    - Force Lemmatization: Always use the most lemma form of a word.
+    - Prefer ADJECTIVE forms for properties. Prefer NOUN forms for objects/entities。
+    - No Plurals: Always use singular forms (e.g., "spring" NOT "springs").
+    - No Inflections: No past tense or progressive forms.
+  
 
 # Output Format (JSON)
 {

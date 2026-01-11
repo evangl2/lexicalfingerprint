@@ -1,22 +1,41 @@
 import { FingerprintItem, FingerprintResult } from "../types";
 
+export interface SimilarityMatch {
+  word: string;
+  weightA: number;
+  weightB: number;
+  contribution: number;
+  isBonus: boolean;
+  bonusType?: 'tier1' | 'cross';
+}
+
+export interface SimilarityAnalysis {
+  score: number;
+  intersectionSum: number;
+  totalWeightA: number;
+  totalWeightB: number;
+  matches: SimilarityMatch[];
+}
+
 /**
  * 采用混合重合算法 (Hybrid Overlap Coefficient)
  * 核心逻辑：
  * 1. 锚点对齐：如果一个单词在两组指纹中同时存在，视为语义锚点对齐。
- * 2. 弱化随机性：对共现单词的权重取“平均值”并乘以 1.3 倍作为奖励。
+ * 2. 动态权重：
+ *    - Tier 1 强匹配 (Both Weights >= 0.9): 贡献度 = Average * 1.2 (核心语义锁定)
+ *    - 跨层级匹配 (Cross Tier): 贡献度 = ((w1 + w2) / 2) * 1.2 (奖励模糊语义连接)
+ *    - 普通同层级匹配 (Other Same Tier): 贡献度 = (w1 + w2) / 2
  * 
- * 公式: 
- * Intersection = Sum( ((w1 + w2) / 2) * 1.3 ) for common words
  * Score = Intersection / Min(Total Weight 1, Total Weight 2)
  */
-export const calculateSimilarity = (fp1: FingerprintResult, fp2: FingerprintResult): number => {
+export const analyzeSimilarity = (fp1: FingerprintResult, fp2: FingerprintResult): SimilarityAnalysis => {
   const map1 = new Map(fp1.fingerprint.map(i => [i.word.toLowerCase(), i.weight]));
   const map2 = new Map(fp2.fingerprint.map(i => [i.word.toLowerCase(), i.weight]));
 
   const allWords = new Set([...map1.keys(), ...map2.keys()]);
   
   let intersectionSum = 0;
+  const matches: SimilarityMatch[] = [];
   
   allWords.forEach(word => {
     const w1 = map1.get(word) || 0;
@@ -24,12 +43,41 @@ export const calculateSimilarity = (fp1: FingerprintResult, fp2: FingerprintResu
     
     // 只有当单词在两边都存在时，才计算重合度
     if (w1 > 0 && w2 > 0) {
-      // 修改：
-      // 1. (w1 + w2) / 2 : 平滑 AI 权重分配的随机性
-      // 2. * 1.3 : 给予 150% 的权重奖励。如果锚点对齐，即使其他非核心词汇有差异，也能显著拉高相似度。
-      intersectionSum += ((w1 + w2) / 2) * 1.3;
+      const average = (w1 + w2) / 2;
+      let contribution = average;
+      let isBonus = false;
+      let bonusType: 'tier1' | 'cross' | undefined;
+
+      // 逻辑判断：
+      // 1. 跨层级匹配 (Cross Tier): 给予 1.2 倍奖励
+      // 2. Tier 1 强匹配 (Same Tier & High Weight): 给予 1.3 倍奖励
+      
+      if (Math.abs(w1 - w2) > 0.001) {
+        // Cross Tier
+        contribution = average * 1.2;
+        isBonus = true;
+        bonusType = 'cross';
+      } else if (w1 >= 0.9) {
+        // Same Tier (Tier 1 is typically 1.0)
+        contribution = average * 1.3;
+        isBonus = true;
+        bonusType = 'tier1';
+      }
+
+      intersectionSum += contribution;
+      matches.push({
+        word,
+        weightA: w1,
+        weightB: w2,
+        contribution,
+        isBonus,
+        bonusType
+      });
     }
   });
+
+  // 按贡献度降序排列
+  matches.sort((a, b) => b.contribution - a.contribution);
 
   // 计算各自的总权重和
   const sum1 = fp1.fingerprint.reduce((acc, curr) => acc + curr.weight, 0);
@@ -38,10 +86,23 @@ export const calculateSimilarity = (fp1: FingerprintResult, fp2: FingerprintResu
   // 取两者中较小的总权重作为分母（包容性原则，Sub-set matching）
   const minTotalWeight = Math.min(sum1, sum2);
 
-  if (minTotalWeight === 0) return 0;
+  // 结果可能超过 1.0 (因为有奖励乘数)，因此需要截断
+  const score = minTotalWeight === 0 ? 0 : Math.min(1.0, intersectionSum / minTotalWeight);
 
-  // 结果可能超过 1.0 (因为乘了 1.3)，因此需要截断
-  return Math.min(1.0, intersectionSum / minTotalWeight);
+  return {
+    score,
+    intersectionSum,
+    totalWeightA: sum1,
+    totalWeightB: sum2,
+    matches
+  };
+};
+
+/**
+ * Wrapper for backward compatibility
+ */
+export const calculateSimilarity = (fp1: FingerprintResult, fp2: FingerprintResult): number => {
+  return analyzeSimilarity(fp1, fp2).score;
 };
 
 /**

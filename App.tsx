@@ -3,8 +3,8 @@ import { ProcessingItem, FingerprintConfig } from './types';
 import { SCENARIOS, DEFAULT_CONFIG, AVAILABLE_MODELS } from './constants';
 import { generateFingerprint } from './services/geminiService';
 import FingerprintCard from './components/FingerprintCard';
-import { calculateSimilarity, getSimilarityColor } from './utils/similarity';
-import { BrainCircuit, Play, RefreshCw, Wand2, FlaskConical, Settings, RotateCcw, X, Plus, Minus, Sliders, Cpu } from 'lucide-react';
+import { analyzeSimilarity, getSimilarityColor, SimilarityAnalysis } from './utils/similarity';
+import { BrainCircuit, Play, RefreshCw, Wand2, FlaskConical, Settings, RotateCcw, X, Plus, Minus, Sliders, Cpu, Calculator, Sigma, HelpCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [items, setItems] = useState<ProcessingItem[]>([]);
@@ -15,6 +15,13 @@ const App: React.FC = () => {
   // Configuration State
   const [config, setConfig] = useState<FingerprintConfig>(DEFAULT_CONFIG);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Detail Modal State
+  const [selectedCombo, setSelectedCombo] = useState<{
+    itemA: ProcessingItem;
+    itemB: ProcessingItem;
+    analysis: SimilarityAnalysis;
+  } | null>(null);
 
   const handleAddItem = useCallback(async (inputDefinition: string, inputLabel?: string) => {
     if (!inputDefinition.trim()) return;
@@ -83,8 +90,8 @@ const App: React.FC = () => {
       for (let j = i + 1; j < completedItems.length; j++) {
         const itemA = completedItems[i];
         const itemB = completedItems[j];
-        const score = calculateSimilarity(itemA.result!, itemB.result!);
-        combinations.push({ itemA, itemB, score });
+        const analysis = analyzeSimilarity(itemA.result!, itemB.result!);
+        combinations.push({ itemA, itemB, analysis });
       }
     }
 
@@ -96,8 +103,12 @@ const App: React.FC = () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {combinations.map((combo, idx) => (
-            <div key={idx} className={`p-4 rounded-lg border flex flex-col justify-between ${getSimilarityColor(combo.score)}`}>
-              <div className="flex justify-between items-start mb-3 gap-3">
+            <div 
+              key={idx} 
+              onClick={() => setSelectedCombo(combo)}
+              className={`p-4 rounded-lg border flex flex-col justify-between cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] ${getSimilarityColor(combo.analysis.score)}`}
+            >
+              <div className="flex justify-between items-start mb-3 gap-3 pointer-events-none">
                  {/* Item A Label */}
                  <div className="flex flex-col w-1/2 min-w-0">
                    <div className="flex items-center gap-1">
@@ -121,12 +132,15 @@ const App: React.FC = () => {
                  </div>
               </div>
               
-              <div className="flex items-end justify-between mt-2 pt-2 border-t border-black/5">
-                <span className="text-xs uppercase font-bold opacity-60">Sense Affinity</span>
-                <span className="text-2xl font-bold tracking-tight">{(combo.score * 100).toFixed(1)}%</span>
+              <div className="flex items-end justify-between mt-2 pt-2 border-t border-black/5 pointer-events-none">
+                <span className="text-xs uppercase font-bold opacity-60 flex items-center gap-1">
+                  <Calculator size={12} />
+                  Calculated Affinity
+                </span>
+                <span className="text-2xl font-bold tracking-tight">{(combo.analysis.score * 100).toFixed(1)}%</span>
               </div>
-              <div className="w-full bg-black/10 h-1.5 mt-2 rounded-full overflow-hidden">
-                <div className="h-full bg-current opacity-50" style={{ width: `${combo.score * 100}%` }}></div>
+              <div className="w-full bg-black/10 h-1.5 mt-2 rounded-full overflow-hidden pointer-events-none">
+                <div className="h-full bg-current opacity-50" style={{ width: `${combo.analysis.score * 100}%` }}></div>
               </div>
             </div>
           ))}
@@ -415,8 +429,142 @@ const App: React.FC = () => {
             )}
           </div>
         )}
-
       </main>
+
+      {/* Detailed Analysis Modal */}
+      {selectedCombo && (
+         <div 
+           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in"
+           onClick={() => setSelectedCombo(null)}
+         >
+           <div 
+             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-100 flex flex-col"
+             onClick={e => e.stopPropagation()}
+           >
+             <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+               <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                 <Calculator className="text-indigo-600" size={20} />
+                 Similarity Calculation
+               </h3>
+               <button 
+                 onClick={() => setSelectedCombo(null)}
+                 className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100 transition-colors"
+               >
+                 <X size={20} />
+               </button>
+             </div>
+             
+             <div className="p-6 overflow-y-auto">
+               <div className="flex flex-col sm:flex-row gap-8 mb-8">
+                  <div className="flex-1">
+                     <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Sense A (Denominator 1)</div>
+                     <div className="font-medium text-slate-700 bg-slate-50 p-3 rounded border border-slate-200 mb-2 text-sm leading-relaxed">
+                        {selectedCombo.itemA.input}
+                     </div>
+                     <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Total Weight:</span>
+                        <span className="font-mono font-bold">{selectedCombo.analysis.totalWeightA.toFixed(2)}</span>
+                     </div>
+                  </div>
+                  <div className="flex-1">
+                     <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Sense B (Denominator 2)</div>
+                     <div className="font-medium text-slate-700 bg-slate-50 p-3 rounded border border-slate-200 mb-2 text-sm leading-relaxed">
+                        {selectedCombo.itemB.input}
+                     </div>
+                     <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Total Weight:</span>
+                        <span className="font-mono font-bold">{selectedCombo.analysis.totalWeightB.toFixed(2)}</span>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Formula Header */}
+               <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-6">
+                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                       <div className="bg-white p-2 rounded shadow-sm border border-indigo-100">
+                          <Sigma className="text-indigo-600" size={16} />
+                       </div>
+                       <div className="text-sm font-medium text-indigo-900">
+                         Intersection Sum: <span className="font-bold font-mono text-lg ml-1">{selectedCombo.analysis.intersectionSum.toFixed(2)}</span>
+                       </div>
+                    </div>
+                    
+                    <div className="hidden sm:block text-indigo-300">/</div>
+
+                    <div className="flex items-center gap-2">
+                       <div className="text-sm font-medium text-indigo-900 text-right">
+                         <div>Min Total Weight</div>
+                         <div className="text-xs opacity-60 font-mono">Math.min({selectedCombo.analysis.totalWeightA.toFixed(1)}, {selectedCombo.analysis.totalWeightB.toFixed(1)})</div>
+                       </div>
+                       <div className="bg-white p-2 rounded shadow-sm border border-indigo-100 font-bold font-mono text-lg text-indigo-700">
+                          {Math.min(selectedCombo.analysis.totalWeightA, selectedCombo.analysis.totalWeightB).toFixed(2)}
+                       </div>
+                    </div>
+
+                    <div className="hidden sm:block text-indigo-300">=</div>
+
+                    <div className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm shadow-indigo-200">
+                      {(selectedCombo.analysis.score * 100).toFixed(1)}%
+                    </div>
+                 </div>
+               </div>
+
+               {/* Matches Table */}
+               <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                 Matched Anchors & Contributions
+                 <span className="text-[10px] font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                   Logic: Tier 1 OR Cross Tier → Avg * 1.2
+                 </span>
+               </h4>
+               
+               {selectedCombo.analysis.matches.length > 0 ? (
+                 <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                       <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
+                          <tr>
+                             <th className="px-4 py-3">Word</th>
+                             <th className="px-4 py-3 text-right">Weight A</th>
+                             <th className="px-4 py-3 text-right">Weight B</th>
+                             <th className="px-4 py-3 text-right">Average</th>
+                             <th className="px-4 py-3 text-right">Contribution</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                          {selectedCombo.analysis.matches.map((match, i) => (
+                             <tr key={i} className={`hover:bg-slate-50/50 ${match.isBonus ? 'bg-indigo-50/10' : ''}`}>
+                                <td className="px-4 py-2 font-medium text-slate-700">{match.word}</td>
+                                <td className="px-4 py-2 text-right font-mono text-slate-500">{match.weightA.toFixed(2)}</td>
+                                <td className="px-4 py-2 text-right font-mono text-slate-500">{match.weightB.toFixed(2)}</td>
+                                <td className="px-4 py-2 text-right font-mono text-slate-400">{((match.weightA + match.weightB)/2).toFixed(2)}</td>
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${match.isBonus ? 'text-indigo-600 bg-indigo-50/30' : 'text-slate-600'}`}>
+                                   +{match.contribution.toFixed(2)}
+                                   {match.isBonus && (
+                                     <span className="text-[9px] ml-1 bg-indigo-600 text-white px-1 py-0.5 rounded opacity-80">
+                                       {match.bonusType === 'tier1' ? 'TIER 1' : 'CROSS'}
+                                     </span>
+                                   )}
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                       <tfoot className="bg-slate-50 font-bold text-slate-700">
+                          <tr>
+                             <td colSpan={4} className="px-4 py-3 text-right text-xs uppercase tracking-wider">Total Intersection Sum</td>
+                             <td className="px-4 py-3 text-right text-indigo-700">{selectedCombo.analysis.intersectionSum.toFixed(2)}</td>
+                          </tr>
+                       </tfoot>
+                    </table>
+                 </div>
+               ) : (
+                 <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    No shared semantic anchors found.
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+      )}
     </div>
   );
 };
